@@ -1,12 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'package:parku/models/vehicle_model.dart';
+import 'package:parku/utils/api/do_checkin.dart';
+import 'package:parku/utils/messages/show_message.dart';
+
+import '../../models/checkin_model.dart';
+import '../login/bloc/current.dart';
 
 class ConfirmPage extends StatefulWidget {
   final String numberPlate;
-
-  ConfirmPage({super.key, required this.numberPlate});
+  final File imageFile; // 🔥 ADD THIS
+  ConfirmPage({super.key, required this.numberPlate,required this.imageFile});
 
   @override
   State<ConfirmPage> createState() => _ConfirmPageState();
@@ -58,15 +65,22 @@ class _ConfirmPageState extends State<ConfirmPage> {
       ),
       persistentFooterButtons: [
         InkWell(
-          onTap: (){
-            VehicleModel vehicles = VehicleModel(
-                carNumber: controller.text, nickname: name.text, name: name.text,
-                startDate: DateTime.now(), endDate: DateTime.now(), completed: false,
-                vehicle: vehicle, phoneNumber: phone.text
-            );
-            addVehicle(vehicles);
+          onTap: () async {
+            sendCheckin();
+            //addVehicle(vehicles);
           },
-          child: Container(
+          child: isLoading?Column(
+            children: [
+              if (isLoading) ...[
+                LinearProgressIndicator(value: progress),
+                const SizedBox(height: 10),
+              ],
+              Text(
+                statusMessage,
+                style: const TextStyle(fontSize: 16,color: Colors.white,fontWeight: FontWeight.w800),
+              ),
+            ],
+          ): Container(
             width: MediaQuery.of(context).size.width-15,
             height: 55,
             decoration: BoxDecoration(
@@ -78,6 +92,63 @@ class _ConfirmPageState extends State<ConfirmPage> {
         )
       ],
     );
+  }
+  String statusMessage = "Ready";
+  double progress = 0;
+  bool isLoading = false;
+
+  Future<void> sendCheckin() async {
+    setState(() {
+      isLoading = true;
+      statusMessage = "📤 Preparing upload...";
+      progress = 0;
+    });
+
+    try {
+      final res = await ApiService.createCheckin(
+        imageFile: widget.imageFile,
+        data: {
+          "starttime": DateTime.now().toIso8601String(),
+          "endtime": DateTime.now().toIso8601String(),
+          "out": 0,
+          "phonenumber": phone.text,
+          "name": name.text,
+          "carnumber": controller.text,
+          "gatekeeperuid": "${Current.user.id}",
+          "location": Current.user.location,
+        },
+        onProgress: (sent, total) {
+          setState(() {
+            progress = sent / total;
+            if (progress < 0.3) {
+              statusMessage = "📡 Connecting to server...";
+            } else if (progress < 0.7) {
+              statusMessage = "⬆️ Uploading image...";
+            } else {
+              statusMessage = "☁️ Processing on server...";
+            }
+          });
+        },
+      );
+
+      setState(() {
+        statusMessage = "✅ Check-in successful!";
+        isLoading = false;
+      });
+      Navigator.pop(context);
+      Navigator.pop(context);
+      Send.topic(context, "SUCCCESS", "SUCCESS: ${res['id']}",b: true);
+
+      print("SUCCESS: ${res['id']}");
+
+    } catch (e) {
+      Send.topic(context, "Error", "❌ Failed: ${e.toString()}",b: false);
+      setState(() {
+        statusMessage = "❌ Failed: ${e.toString()}";
+        isLoading = false;
+      });
+      print("$e");
+    }
   }
   Future<void> addVehicle(VehicleModel vehicle) async {
     final box = Hive.box<VehicleModel>('vehicles');

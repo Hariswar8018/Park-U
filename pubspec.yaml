@@ -52,6 +52,9 @@ dependencies:
   shimmer: ^3.0.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
+  another_flushbar: ^1.12.32
+  syncfusion_flutter_datepicker: ^33.1.45
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

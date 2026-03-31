@@ -22,6 +22,17 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Park U',
       theme: ThemeData(
+        appBarTheme: AppBarTheme(
+          backgroundColor: Color(0xff121622),
+          iconTheme: IconThemeData(
+            color: Colors.white,
+          ),
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 21
+          ),
+        ),
         scaffoldBackgroundColor: Color(0xff121622),
         colorScheme: .fromSeed(seedColor: Colors.white),
       ),

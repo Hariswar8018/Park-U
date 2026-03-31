@@ -1,34 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
+import 'package:parku/screens/card/car_card.dart';
+import 'package:parku/screens/miscelleous/make_exit.dart';
+import 'package:shimmer/shimmer.dart';
 
+import '../../models/checkin_model.dart';
 import '../../models/vehicle_model.dart';
+import '../../utils/api/do_checkin.dart';
 import '../scan/scan.dart';
 
 class Home extends StatefulWidget {
-  const Home({super.key});
-
+  const Home({super.key,required this.onTabChange});
+  final Function(int) onTabChange;
   @override
   State<Home> createState() => _HomeState();
 }
 
 class _HomeState extends State<Home> {
-  List<VehicleModel> list = [];
-  List<VehicleModel> getVehicles() {
-    final box = Hive.box<VehicleModel>('vehicles');
 
-    return box.values.toList();
-  }
-  @override
-  void initState(){
-    super.initState();
-    list=getVehicles();
-    if (list.isEmpty){
-      return ;
+  List<CheckinModel> checkins = [];
+
+  Future<void> loadTodayCheckins() async {
+    try {
+      print("Yes doing");
+      DateTime now = DateTime.now();
+
+      String formattedDate =
+          "${now.year.toString().padLeft(4, '0')}-"
+          "${now.month.toString().padLeft(2, '0')}-"
+          "${now.day.toString().padLeft(2, '0')}";
+
+      final response = await ApiService.getCheckinsByDate(formattedDate);
+
+      List<CheckinModel> temp = response
+          .map<CheckinModel>((e) => CheckinModel.fromJson(e))
+          .toList();
+
+      setState(() {
+        working=false;
+        checkins = temp;
+        totalCount = checkins.length;
+        outZeroCount = checkins.where((e) => e.outStatus == 0).length;
+        remainingCount = totalCount - outZeroCount;
+
+      });
+
+    } catch (e) {
+      setState(() {
+        working=false;
+        checkins = [];
+      });
+      print("ERROR: $e");
     }
-    setState(() {
-
-    });
+  }
+  int totalCount=0, outZeroCount=0,remainingCount=0;
+  bool working = true;
+  @override
+  void initState() {
+    super.initState();
+    loadTodayCheckins();
   }
   @override
   Widget build(BuildContext context) {
@@ -38,67 +69,69 @@ class _HomeState extends State<Home> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(height: 10,),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              con(w, totalCount, "Entry", Icon(Icons.add,color: Colors.blue,size: 25,),),
+              con(w, outZeroCount, "Exit", Icon(Icons.logout,color: Colors.red,size: 25,),),
+              con(w, remainingCount, "Live", Icon(Icons.access_time_filled,color: Colors.orange,size: 25,),),
+            ],
+          ),
+          SizedBox(height: 10,),
           container(w, Color(0xff0F5086),Color(0xff1A68B2),true),
           SizedBox(height: 15,),
           container(w, Color(0xffCF9720),Color(0xffA26D03),false),
           SizedBox(height: 25,),
-          Row(
-            children: [
-              SizedBox(width: 10,),
-              Icon(Icons.refresh_sharp,color: Colors.white,size: 30,),
-              SizedBox(width: 4,),
-              Text("Recent Activities",style: TextStyle(color: Colors.white,fontWeight: FontWeight.w900),),
-              Spacer(),
-              Text("See All",style: TextStyle(color: Colors.white,fontWeight: FontWeight.w900),),
-              Icon(Icons.arrow_forward_outlined,color: Colors.white,size: 22,),
-              SizedBox(width: 20,),
-            ],
+          InkWell(
+            onTap: (){
+              widget.onTabChange(1);
+            },
+            child: Row(
+              children: [
+                SizedBox(width: 10,),
+                Icon(Icons.refresh_sharp,color: Colors.white,size: 30,),
+                SizedBox(width: 4,),
+                Text("Recent Activities",style: TextStyle(color: Colors.white,fontWeight: FontWeight.w900),),
+                Spacer(),
+                Text("See All",style: TextStyle(color: Colors.white,fontWeight: FontWeight.w900),),
+                Icon(Icons.arrow_forward_outlined,color: Colors.white,size: 22,),
+                SizedBox(width: 20,),
+              ],
+            ),
           ),
           SizedBox(height: 15,),
-          Flexible(
+          working?Flexible(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: ListView.builder(
+                itemCount: 10,
+                itemBuilder: (BuildContext context, int index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Shimmer.fromColors(
+                        child: Container(
+                            width: w-20,
+                            height: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: Colors.grey.shade50,width: 0.1
+                            ),
+                          ),
+                        ), baseColor: Color(0xff121622), highlightColor: Colors.grey),
+                  );
+                },
+              ),
+            ),
+          ):Flexible(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: ListView.builder(
-                itemCount: list.length,
+                itemCount: checkins.length,
                 itemBuilder: (BuildContext context, int index) {
-                  VehicleModel vehicle = list[index];
-                  return  Container(
-                    width: w-20,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: Colors.grey.shade50,width: 0.1
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 17.0),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 55,height: 55,
-                            decoration: BoxDecoration(
-                                color: Colors.greenAccent.shade100,
-                                borderRadius: BorderRadius.circular(10)
-                            ),
-                            child: Icon(Icons.verified,color: Colors.black,),
-                          ),
-                          SizedBox(width: 10,),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(vehicle.carNumber,style: TextStyle(color: Colors.white,fontWeight: FontWeight.w800,fontSize: 19),),
-                              Text("Entry : ${formatSmartDateTime(vehicle.startDate)}",style: TextStyle(color: Colors.white,fontWeight: FontWeight.w600,fontSize: 11),),
-                              vehicle.nickname.isEmpty?SizedBox():Text("Nickname : ${vehicle.nickname} ",style: TextStyle(color: Colors.white,fontWeight: FontWeight.w600,fontSize: 11),)
-                            ],
-                          ),
-                          SizedBox(width: 10,),
-                        ],
-                      ),
-                    ),
-                  );
+                  CheckinModel vehicle = checkins[index];
+                  return CarCard(vehicle: vehicle);
                 },
               ),
             ),
@@ -107,6 +140,28 @@ class _HomeState extends State<Home> {
       ),
     );
   }
+  Widget con(double w, int i, String str, Icon icon)=>Container(
+    width: w/4+12,
+    height:120,
+    decoration: BoxDecoration(
+        border: Border.all(
+            color: Color(0xff0F5086),
+            width: 3
+        ),
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(15)
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        icon,
+        SizedBox(height: 10,),
+        Text("$i",style: TextStyle(color: Colors.white,fontSize: 23,fontWeight: FontWeight.w700),),
+        Text("$str",style: TextStyle(color: Colors.white,fontSize: 15,fontWeight: FontWeight.w800),),
+      ],
+    ),
+  );
+
   String formatSmartDateTime(DateTime dateTime) {
     final now = DateTime.now();
 
@@ -123,15 +178,26 @@ class _HomeState extends State<Home> {
       return "${DateFormat('h:mm a').format(dateTime)} on ${DateFormat('d MMM, yyyy').format(dateTime)}";
     }
   }
+
   Widget container(double w, Color color,Color color1, bool yes )=>Center(
     child: InkWell(
       onTap: (){
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ScanPage(),
-          ),
-        );
+        if(yes){
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ScanPage(),
+            ),
+          );
+        }else{
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MakeExit(),
+            ),
+          );
+        }
+
       },
       child: Container(
         width: w-25,
@@ -168,4 +234,5 @@ class _HomeState extends State<Home> {
       ),
     ),
   );
+
 }

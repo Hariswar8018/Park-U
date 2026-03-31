@@ -1,14 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:parku/screens/login/bloc/current.dart';
+import 'package:parku/screens/miscelleous/update_screeen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../login/spalsh.dart';
+import '../scan/scan.dart';
 
 class Profile extends StatefulWidget {
-  const Profile({super.key});
-
+  const Profile({super.key,required this.onTabChange});
+  final Function(int) onTabChange;
   @override
   State<Profile> createState() => _ProfileState();
 }
 
 class _ProfileState extends State<Profile> {
 
+
+  /*
+  var res = await UserApiService.updateUser(
+  id: 1,
+  name: "Ayush Updated",
+  bio: "AI + Flutter 🚀",
+);
+
+print(res);
+   */
   @override
   Widget build(BuildContext context) {
     double w = MediaQuery.of(context).size.width;
@@ -38,8 +55,8 @@ class _ProfileState extends State<Profile> {
             ),
           ),
           SizedBox(height: 25,),
-          Text("Ayusman Samasi",style: TextStyle(color: Colors.white,fontWeight: FontWeight.w700,fontSize: 19),),
-          Text("hariswarsamasi@gmail.com",style: TextStyle(color: Colors.grey,fontWeight: FontWeight.w400,),),
+          Text(Current.user.name,style: TextStyle(color: Colors.white,fontWeight: FontWeight.w700,fontSize: 19),),
+          Text("+91"+Current.user.phone.toString(),style: TextStyle(color: Colors.grey,fontWeight: FontWeight.w400,fontSize: 17),),
           SizedBox(height: 10,),
           SizedBox(height: 30,),
           Container(
@@ -61,21 +78,30 @@ class _ProfileState extends State<Profile> {
               children: [
                 InkWell(
                     onTap: (){
-
+                      Navigator.push(context, MaterialPageRoute(builder: (_)=>UpdateScreen(user: Current.user)));
                     },
                     child: list(Icon(Icons.person_pin_sharp, color:Colors.black,size: 25,), "Edit Profile", "about")),
                 InkWell(
                     onTap: (){
+                      widget.onTabChange(1);
                     },
                     child: list(Icon(Icons.list_alt, color:Colors.black,size: 25,), "History", "terms")),
                 InkWell(
                     onTap: (){
-
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ScanPage(),
+                        ),
+                      );
                     },
                     child: list(Icon(Icons.qr_code_scanner, color:Colors.black,size: 25,), "Scan Car", "about")),
                 InkWell(
                     onTap: () async {
-
+                      final Uri _url = Uri.parse('https://wa.me/919533286038');
+                      if (!await launchUrl(_url)) {
+                        throw Exception('Could not launch $_url');
+                      }
                     },
                     child: list(Icon(Icons.support_agent_outlined, color:Colors.black,size: 25,), "Help & Support", "terms")),
                 InkWell(
@@ -97,6 +123,12 @@ class _ProfileState extends State<Profile> {
                               ElevatedButton(
                                 onPressed: () async {
                                   Navigator.pop(context);
+                                  final SharedPreferences prefs = await SharedPreferences
+                                      .getInstance();
+
+                                  await prefs.setString('id', "NA");
+                                  await prefs.setString('password', "NA");
+                                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_)=>SplashScreen()));
 
                                 },
                                 style: ButtonStyle(
